@@ -1,0 +1,16 @@
+{
+  "name": "khaia-kham-ache-bot",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Sylheti Facebook Messenger bot starter for Khaiya Kham Ache",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "express": "^4.21.2"
+  }
+}
