@@ -1,92 +1,95 @@
-const express = require('express');
+const login = require("fca-unofficial");
+const cron = require("node-cron");
+const express = require("express");
 
+// Render-এ সার্ভিস অ্যাক্টিভ রাখার জন্য ডামি Server সেটআপ
 const app = express();
-app.use(express.json());
-
 const PORT = process.env.PORT || 3000;
-const VERIFY_TOKEN = process.env.VERIFY_TOKEN || 'CHANGE_ME';
-const PAGE_ACCESS_TOKEN = process.env.PAGE_ACCESS_TOKEN || '';
 
-const GROUP_NAME = 'খাইয়া খাম আছে';
+app.get('/', (_req, res) => {
+  res.send('🤖 "খাইয়া খাম আছে" সিলেটি চ্যাটবট রানিং আছে!');
+});
+
+app.listen(PORT, () => {
+  console.log(`Web server running on port ${PORT}`);
+});
+
+const GROUP_NAME = 'খাইয়া খাম আছে';
 
 const replies = [
-  'ওই ভাই/বইন 😄 কিতা খবর? খাইয়া খাম আছে নি? 😂',
+  'ওই ভাই/বাইন 😄 কিতা খবর? খাইয়া খাম আছে নি? 😂',
   'আড্ডা জমাইতেছো নি? 😎',
   'হ, কও কিতা অইছে! 😁'
 ];
 
-app.get('/', (_req, res) => {
-  res.send(`🤖 ${GROUP_NAME} Bot is running.`);
-});
+// Environment Variables থেকে তথ্য সংগ্রহ
+const appState = JSON.parse(process.env.FB_APPSTATE || "[]");
+const ADMIN_ID = process.env.ADMIN_ID || "";
+const TARGET_GROUP_ID = process.env.TARGET_GROUP_ID || "";
 
-// Meta Messenger webhook verification
-app.get('/webhook', (req, res) => {
-  const mode = req.query['hub.mode'];
-  const token = req.query['hub.verify_token'];
-  const challenge = req.query['hub.challenge'];
+// ফেসবুক আইডিতে লগইন ও মেসেঞ্জার হ্যান্ডলিং
+login({ appState }, (err, api) => {
+  if (err) return console.error("Login Error:", err);
 
-  if (mode === 'subscribe' && token === VERIFY_TOKEN) {
-    return res.status(200).send(challenge);
-  }
+  console.log(`🤖 ${GROUP_NAME} Bot successfully logged in!`);
 
-  return res.sendStatus(403);
-});
+  api.listenMqtt((err, event) => {
+    if (err) return console.error("Listen Error:", err);
 
-// Messenger webhook events
-app.post('/webhook', async (req, res) => {
-  try {
-    if (req.body.object !== 'page') return res.sendStatus(404);
+    // ১. গ্রুপে নতুন সদস্য যুক্ত হলে (Welcome Message)
+    if (event.type === "event" && event.logMessageType === "log:subscribe") {
+      api.sendMessage(`👋 ${GROUP_NAME}-ত স্বাগতম! আইয়া আড্ডা জমাই দেউ! 😄`, event.threadID);
+    }
 
-    for (const entry of req.body.entry || []) {
-      for (const event of entry.messaging || []) {
-        if (!event.message || !event.sender) continue;
+    // ২. গ্রুপ থেকে সদস্য বের হলে (Goodbye Message)
+    if (event.type === "event" && event.logMessageType === "log:unsubscribe") {
+      api.sendMessage("অউগো যাইরা গা? আউক্কা তবে, খেয়াল রাখিও আপনার! 👋", event.threadID);
+    }
 
-        const text = (event.message.text || '').trim().toLowerCase();
-        if (!text) continue;
+    // ৩. মেসেজ আসলে সিলেটি রিপ্লাই দেওয়া
+    if (event.type === "message" || event.type === "message_reply") {
+      const text = (event.body || "").trim().toLowerCase();
+      const senderId = event.senderID;
+      if (!text) return;
 
-        let reply = null;
-        if (['hi', 'hello', 'হাই', 'হ্যালো'].includes(text)) {
-          reply = `👋 ${GROUP_NAME}-ত স্বাগতম! আইয়া আড্ডা জমাই দেউ! 😄`;
-        } else if (text === 'help' || text === 'হেল্প') {
-          reply = '🤖 Commands: help, hi, azan, adda';
-        } else if (text === 'azan' || text === 'আজান') {
-          reply = '🕌 আজান অইছে গো। নামাজর সময় অইছে—চল সবাই নামাজ পড়ি। 🤲';
-        } else if (text === 'adda' || text === 'আড্ডা') {
-          reply = replies[Math.floor(Math.random() * replies.length)];
-        }
+      let reply = null;
 
-        if (reply && PAGE_ACCESS_TOKEN) {
-          await sendMessage(event.sender.id, reply);
+      if (['hi', 'hello', 'হাই', 'হ্যালো'].includes(text)) {
+        reply = `👋 ${GROUP_NAME}-ত স্বাগতম! আইয়া আড্ডা জমাই দেউ! 😄`;
+      } 
+      else if (['bye', 'যাই', 'বিদায়'].includes(text)) {
+        reply = 'অউগো যাইরা গা? আউক্কা তবে, খেয়াল রাখিও আপনার! 👋';
+      }
+      else if (text.startsWith('/admin')) {
+        if (senderId === ADMIN_ID) {
+          reply = '👑 এডমিন সাব! হুকুম খরুইন, খিতা করতাম?';
+        } else {
+          reply = '❌ আপনি তো এডমিন না ভাই, বাহাদুরি খরইন কেনে? 😂';
         }
       }
+      else if (text === 'help' || text === 'হেল্প') {
+        reply = '🤖 Commands: help, hi, bye, azan, adda, /admin';
+      } 
+      else if (text === 'azan' || text === 'আজান') {
+        reply = '🕌 আজান অইছে গো। নামাজর সময় অইছে—চল সবাই নামাজ পড়ি। 🤲';
+      } 
+      else if (text === 'adda' || text === 'আড্ডা') {
+        reply = replies[Math.floor(Math.random() * replies.length)];
+      } 
+      else if (text.startsWith('bot') || text.startsWith('বট')) {
+        reply = '🧠 ওমা! অতো শক্ত সওয়াল প্রমপ্ট করছইন? অখনও হিকিয়া শেষ হয় নাই, তবে বুঝছি বিষয়ডা!';
+      }
+
+      if (reply) {
+        api.sendMessage(reply, event.threadID);
+      }
     }
+  });
 
-    res.sendStatus(200);
-  } catch (error) {
-    console.error(error);
-    res.sendStatus(500);
-  }
-});
-
-async function sendMessage(recipientId, text) {
-  const response = await fetch(
-    `https://graph.facebook.com/v20.0/me/messages?access_token=${encodeURIComponent(PAGE_ACCESS_TOKEN)}`,
-    {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        recipient: { id: recipientId },
-        message: { text }
-      })
+  // প্রতিদিন নির্দিষ্ট সময়ে আজানের অটো রিমাইন্ডার
+  cron.schedule('0 13 * * *', () => { // দুপুর ১টায় জোহরের আজান
+    if (TARGET_GROUP_ID) {
+      api.sendMessage("🕌 জোহরের আজান অইছে গো। নামাজর সময় অইছে—চল সবাই নামাজ পড়ি। 🤲", TARGET_GROUP_ID);
     }
-  );
-
-  if (!response.ok) {
-    const body = await response.text();
-    throw new Error(`Messenger API error ${response.status}: ${body}`);
-  }
-}
-
-app.listen(PORT, () => {
-  console.log(`${GROUP_NAME} Bot running on port ${PORT}`);
+  });
 });
