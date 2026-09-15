@@ -100,7 +100,8 @@ login({ appState }, (err, api) => {
       } else if (msg.includes('আজান') || msg.includes('namaz')) {
         return api.sendMessage('🕌 সময়মতো নামাজ পড়া খুব দরকার ভাই। খাম-কাজ বাদ দিয়া মসজিদে যাওক।', event.threadID, event.messageID);
       } else if (msg.includes('খাইছ নি') || msg.includes('khaiso ni')) {
-        return api.sendMessage('আমারে কিতা মানুষ পাইছ নি? আমি কারেন্ট খাইয়া চলি!', event.threadID, event.messageID);
+        return api.sendMessage('আমারে কিতা মানুষ পাইছ নি? আমি কারেন্ট খাইয়া চলি!', event.threadID, event.messageID)
+          ;
       }
     }
   });
