@@ -1,95 +1,117 @@
-const login = require("fca-unofficial");
-const cron = require("node-cron");
-const express = require("express");
+const express = require('express');
+const login = require('fca-project-origen');
 
-// Render-এ সার্ভিস অ্যাক্টিভ রাখার জন্য ডামি Server সেটআপ
 const app = express();
-const PORT = process.env.PORT || 3000;
+const PORT = process.env.PORT || 10000;
 
-app.get('/', (_req, res) => {
-  res.send('🤖 "খাইয়া খাম আছে" সিলেটি চ্যাটবট রানিং আছে!');
+// Render Web Server
+app.get('/', (req, res) => {
+  res.send('খাইয়া খাম আছে - Sylheti Bot is Active!');
 });
 
 app.listen(PORT, () => {
-  console.log(`Web server running on port ${PORT}`);
+  console.log(`Server running on port ${PORT}`);
 });
 
-const GROUP_NAME = 'খাইয়া খাম আছে';
+// AppState JSON Parse
+let appState;
+try {
+  appState = JSON.parse(process.env.FB_APPSTATE);
+} catch (err) {
+  console.error('FB_APPSTATE JSON parse error!');
+  process.exit(1);
+}
 
-const replies = [
-  'ওই ভাই/বাইন 😄 কিতা খবর? খাইয়া খাম আছে নি? 😂',
-  'আড্ডা জমাইতেছো নি? 😎',
-  'হ, কও কিতা অইছে! 😁'
-];
+// Admin FB ID (এখানে আপনার আসল ফেসবুক প্রোফাইল ID নম্বর বসান)
+const ADMIN_ID = "YOUR_FB_ID_HERE"; 
 
-// Environment Variables থেকে তথ্য সংগ্রহ
-const appState = JSON.parse(process.env.FB_APPSTATE || "[]");
-const ADMIN_ID = process.env.ADMIN_ID || "";
-const TARGET_GROUP_ID = process.env.TARGET_GROUP_ID || "";
-
-// ফেসবুক আইডিতে লগইন ও মেসেঞ্জার হ্যান্ডলিং
 login({ appState }, (err, api) => {
-  if (err) return console.error("Login Error:", err);
+  if (err) {
+    console.error('Login Error:', err);
+    return;
+  }
 
-  console.log(`🤖 ${GROUP_NAME} Bot successfully logged in!`);
-
-  api.listenMqtt((err, event) => {
-    if (err) return console.error("Listen Error:", err);
-
-    // ১. গ্রুপে নতুন সদস্য যুক্ত হলে (Welcome Message)
-    if (event.type === "event" && event.logMessageType === "log:subscribe") {
-      api.sendMessage(`👋 ${GROUP_NAME}-ত স্বাগতম! আইয়া আড্ডা জমাই দেউ! 😄`, event.threadID);
-    }
-
-    // ২. গ্রুপ থেকে সদস্য বের হলে (Goodbye Message)
-    if (event.type === "event" && event.logMessageType === "log:unsubscribe") {
-      api.sendMessage("অউগো যাইরা গা? আউক্কা তবে, খেয়াল রাখিও আপনার! 👋", event.threadID);
-    }
-
-    // ৩. মেসেজ আসলে সিলেটি রিপ্লাই দেওয়া
-    if (event.type === "message" || event.type === "message_reply") {
-      const text = (event.body || "").trim().toLowerCase();
-      const senderId = event.senderID;
-      if (!text) return;
-
-      let reply = null;
-
-      if (['hi', 'hello', 'হাই', 'হ্যালো'].includes(text)) {
-        reply = `👋 ${GROUP_NAME}-ত স্বাগতম! আইয়া আড্ডা জমাই দেউ! 😄`;
-      } 
-      else if (['bye', 'যাই', 'বিদায়'].includes(text)) {
-        reply = 'অউগো যাইরা গা? আউক্কা তবে, খেয়াল রাখিও আপনার! 👋';
-      }
-      else if (text.startsWith('/admin')) {
-        if (senderId === ADMIN_ID) {
-          reply = '👑 এডমিন সাব! হুকুম খরুইন, খিতা করতাম?';
-        } else {
-          reply = '❌ আপনি তো এডমিন না ভাই, বাহাদুরি খরইন কেনে? 😂';
-        }
-      }
-      else if (text === 'help' || text === 'হেল্প') {
-        reply = '🤖 Commands: help, hi, bye, azan, adda, /admin';
-      } 
-      else if (text === 'azan' || text === 'আজান') {
-        reply = '🕌 আজান অইছে গো। নামাজর সময় অইছে—চল সবাই নামাজ পড়ি। 🤲';
-      } 
-      else if (text === 'adda' || text === 'আড্ডা') {
-        reply = replies[Math.floor(Math.random() * replies.length)];
-      } 
-      else if (text.startsWith('bot') || text.startsWith('বট')) {
-        reply = '🧠 ওমা! অতো শক্ত সওয়াল প্রমপ্ট করছইন? অখনও হিকিয়া শেষ হয় নাই, তবে বুঝছি বিষয়ডা!';
-      }
-
-      if (reply) {
-        api.sendMessage(reply, event.threadID);
-      }
-    }
+  api.setOptions({
+    listenEvents: true,
+    selfListen: false,
+    logLevel: 'silent'
   });
 
-  // প্রতিদিন নির্দিষ্ট সময়ে আজানের অটো রিমাইন্ডার
-  cron.schedule('0 13 * * *', () => { // দুপুর ১টায় জোহরের আজান
-    if (TARGET_GROUP_ID) {
-      api.sendMessage("🕌 জোহরের আজান অইছে গো। নামাজর সময় অইছে—চল সবাই নামাজ পড়ি। 🤲", TARGET_GROUP_ID);
+  console.log('Bot successfully logged in!');
+
+  // ⏰ নির্দিষ্ট সময় পর পর Auto Message (প্রতি ১ ঘন্টায় সিলেটি মেসেজ)
+  setInterval(() => {
+    // যেকোনো নির্দিষ্ট চ্যাট ID বা গ্রুপে মেসেজ পাঠাতে পারেন
+    console.log('Auto message ticker working...');
+  }, 3600000);
+
+  // 🕌 আজানের সময় বের করে রিমাইন্ডার পাঠানোর টাইমার
+  setInterval(() => {
+    const now = new Date();
+    const hours = now.getHours();
+    const minutes = now.getMinutes();
+
+    // উদাহরণ: দুপুর ১:১৫ এ জোহরের আজানের রিমাইন্ডার
+    if (hours === 13 && minutes === 15) {
+      // api.sendMessage("🕌 ভাইসকল, জোহরের আজান দিলাইছে! নামাজে যাওক।", threadID);
+    }
+  }, 60000);
+
+  // Event & Message Listener
+  api.listenMqtt((err, event) => {
+    if (err) return console.error('Listen Error:', err);
+
+    // 👋 ১. গ্রুপে কেউ জয়েন করলে (Welcome) বা লিভ নিলে (Goodbye)
+    if (event.type === "event") {
+      if (event.logMessageType === "log:subscribe") {
+        const memberName = event.logMessageData.addedParticipants[0].fullName;
+        api.sendMessage(`👋 আহারে আহো! ${memberName} ভাই/বাইন, আমড়ার "খাইয়া খাম আছে" গ্রুপে আপনারে স্বাগতম! বইয়া চা খাওকা।`, event.threadID);
+      } else if (event.logMessageType === "log:unsubscribe") {
+        api.sendMessage(`👋 অউ দেখইন নি কারবার! না খাইয়া অউ বায়দি থাকি ভাগি গেলা। বাই বাই!`, event.threadID);
+      }
+    }
+
+    // 🤖 ২. চ্যাট মেসেজ প্রসেসিং
+    if (event.type === "message" || event.type === "message_reply") {
+      const msg = event.body ? event.body.toLowerCase() : '';
+      const senderID = event.senderID;
+
+      // 🔥 মেম্বারদের মজার রোস্ট করা (Roast)
+      if (msg.startsWith('!roast')) {
+        const roasts = [
+          "তুইন ভাই অউ চ্যাটে না আইয়া গিয়া ২ বস্তা ময়দা মেখে আইলে বেশি সুন্দর লাগবো!",
+          "তোমার বুদ্ধি আর ডিমের খোসা, দুইটাই সমান পাতলা ভাই!",
+          "অতো খাইজলামি না করি গিয়া পানের দোকানে গিয়া চুন বেচো গা!"
+        ];
+        const randomRoast = roasts[Math.floor(Math.random() * roasts.length)];
+        return api.sendMessage(randomRoast, event.threadID, event.messageID);
+      }
+
+      // 🎵 গান প্লে করা (Song link / Play)
+      if (msg.startsWith('!play') || msg.startsWith('!song')) {
+        const songName = msg.replace('!play', '').replace('!song', '').trim();
+        if (!songName) {
+          return api.sendMessage('🎵 খানি গানের নাম তো কওয়া লাগবো ভাই! যেমন: !play সিলেটি গান', event.threadID, event.messageID);
+        }
+        return api.sendMessage(`🎶 "${songName}" গান সার্চ করা ইয়ার... YouTube বা Spotify থাকি শুনি নেওগা ভাই: https://www.youtube.com/results?search_query=${encodeURIComponent(songName)}`, event.threadID, event.messageID);
+      }
+
+      // 👑 অ্যাডমিন কমান্ড (Admin Command)
+      if (msg.startsWith('!admin')) {
+        if (senderID !== ADMIN_ID) {
+          return api.sendMessage('🚫 তুইন বটের মালিক নায়! অতো গরম দেখাইও না।', event.threadID, event.messageID);
+        }
+        return api.sendMessage('👑 জিউ মালিক! কইন কিতা করতাম? বটের সব কন্ট্রোল আপনার আতাত।', event.threadID, event.messageID);
+      }
+
+      // 🧠 AI Style স্মার্ট উত্তর
+      if (msg.includes('কেমন আছ') || msg.includes('kemon aso')) {
+        return api.sendMessage('আলহামদুলিল্লাহ ভাই, খাইয়া খাম নাই তাও ভালা আছি! আপনার কিতা খবর?', event.threadID, event.messageID);
+      } else if (msg.includes('কিতা কর') || msg.includes('kita kor')) {
+        return api.sendMessage('বইয়া বইয়া মেম্বারদের ফালতু প্যাচাল শুনিয়ার!', event.threadID, event.messageID);
+      } else if (msg.includes('আজান') || msg.includes('namaz')) {
+        return api.sendMessage('🕌 সময়মতো নামাজ পঢ়া খুব দরকার ভাই। খাম-কাজ বাদ দিয়া মসজিদে যাওক।', event.threadID, event.messageID);
+      }
     }
   });
 });
