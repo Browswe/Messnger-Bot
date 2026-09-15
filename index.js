@@ -4,7 +4,6 @@ const login = require('fca-unofficial');
 const app = express();
 const PORT = process.env.PORT || 10000;
 
-// Web Server Keep-Alive
 app.get('/', (req, res) => {
   res.send('খাইয়া খাম আছে - Sylheti Bot is Active!');
 });
@@ -13,7 +12,6 @@ app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
 });
 
-// AppState JSON Parse
 let appState;
 try {
   appState = JSON.parse(process.env.FB_APPSTATE);
@@ -23,7 +21,6 @@ try {
 }
 
 const ADMIN_ID = process.env.ADMIN_ID || "61593514827236"; 
-const TARGET_GROUP_ID = process.env.TARGET_GROUP_ID || "4729500100489240";
 
 const loginOptions = {
   appState: appState,
@@ -36,74 +33,83 @@ login(loginOptions, (err, api) => {
     return;
   }
 
+  // MQTT এবং সেশন ফিক্স করার জন্য আপডেটেড অপশন
   api.setOptions({
     listenEvents: true,
     selfListen: false,
     logLevel: 'silent',
     forceLogin: true,
+    listenTyping: false,
+    autoMarkDelivery: false,
     userAgent: "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
   });
 
   console.log('Bot successfully logged in!');
 
-  // Event & Message Listener
-  api.listenMqtt((err, event) => {
-    if (err) return console.error('Listen Error:', err);
-
-    // 👋 ১. নির্দিষ্ট গ্রুপে কেউ জয়েন করলে (Welcome) বা লিভ নিলে (Goodbye)
-    if (event.type === "event") {
-      if (event.logMessageType === "log:subscribe") {
-        const memberName = event.logMessageData.addedParticipants[0].fullName;
-        api.sendMessage(`👋 আহারে আহো! ${memberName} ভাই/বাইন, আমড়ার "খাইয়া খাম আছে" গ্রুপে আপনারে স্বাগতম! বইয়া চা খাওকা।`, event.threadID);
-      } else if (event.logMessageType === "log:unsubscribe") {
-        api.sendMessage(`👋 অউ দেখইন নি কারবার! না খাইয়া অউ বায়দি থাকি ভাগি গেলা। বাই বাই!`, event.threadID);
-      }
-    }
-
-    // 🤖 ২. চ্যাট মেসেজ প্রসেসিং
-    if (event.type === "message" || event.type === "message_reply") {
-      const msg = event.body ? event.body.toLowerCase() : '';
-      const senderID = event.senderID;
-
-      // 🔥 মেম্বারদের ফানি রোস্ট করা (!roast)
-      if (msg.startsWith('!roast')) {
-        const roasts = [
-          "তুইন ভাই অউ চ্যাটে না আইয়া গিয়া ২ বস্তা ময়দা মেখে আইলে বেশি সুন্দর লাগবো!",
-          "তোমার বুদ্ধি আর ডিমের খোসা, দুইটাই সমান পাতলা ভাই!",
-          "অতো খাইজলামি না করি গিয়া পানের দোকানে গিয়া চুন বেচো গা!",
-          "তোমার লগে কথা কইলে মাথার চুল এক একটা করি হড়ি যায় ভাই!"
-        ];
-        const randomRoast = roasts[Math.floor(Math.random() * roasts.length)];
-        return api.sendMessage(randomRoast, event.threadID, event.messageID);
-      }
-
-      // 🎵 গান খোঁজা (!play বা !song)
-      if (msg.startsWith('!play') || msg.startsWith('!song')) {
-        const songName = msg.replace('!play', '').replace('!song', '').trim();
-        if (!songName) {
-          return api.sendMessage('🎵 খানি গানের নাম তো কওয়া লাগবো ভাই! যেমন: !play সিলেটি গান', event.threadID, event.messageID);
+  // MQTT এরর বাইপাস করে মেসেজ লিসেন করার জন্য সেফটি
+  const listenMqtt = () => {
+    api.listenMqtt((err, event) => {
+      if (err) {
+        if (err.error === 'Not logged in') {
+          console.log('MQTT Session reconnecting...');
+          return setTimeout(listenMqtt, 5000); // সেশন রি-কানেক্ট
         }
-        return api.sendMessage(`🎶 "${songName}" গান সার্চ করা ইয়ার... YouTube থাকি শুনি নেওগা ভাই: https://www.youtube.com/results?search_query=${encodeURIComponent(songName)}`, event.threadID, event.messageID);
+        return console.error('Listen Error:', err);
       }
 
-      // 👑 অ্যাডমিন কমান্ড (!admin)
-      if (msg.startsWith('!admin')) {
-        if (senderID !== ADMIN_ID) {
-          return api.sendMessage('🚫 তুইন বটের মালিক নায়! অতো গরম দেখাইও না।', event.threadID, event.messageID);
+      // 👋 ১. ওয়েলকাম ও গুডবাই
+      if (event.type === "event") {
+        if (event.logMessageType === "log:subscribe") {
+          const memberName = event.logMessageData.addedParticipants[0].fullName;
+          api.sendMessage(`👋 আহারে আহো! ${memberName} ভাই/বাইন, আমড়ার "খাইয়া খাম আছে" গ্রুপে আপনারে স্বাগতম! বইয়া চা খাওকা।`, event.threadID);
+        } else if (event.logMessageType === "log:unsubscribe") {
+          api.sendMessage(`👋 অউ দেখইন নি কারবার! না খাইয়া অউ বায়দি থাকি ভাগি গেলা। বাই বাই!`, event.threadID);
         }
-        return api.sendMessage('👑 জিউ মালিক! কইন কিতা করতাম? বটের সব কন্ট্রোল আপনার আতাত।', event.threadID, event.messageID);
       }
 
-      // 🧠 AI Style সিলেটি অটো উত্তর
-      if (msg.includes('কেমন আছ') || msg.includes('kemon aso')) {
-        return api.sendMessage('আলহামদুলিল্লাহ ভাই, খাইয়া খাম নাই তাও ভালা আছি! আপনার কিতা খবর?', event.threadID, event.messageID);
-      } else if (msg.includes('কিতা কর') || msg.includes('kita kor')) {
-        return api.sendMessage('বইয়া বইয়া মেম্বারদের ফালতু প্যাচাল শুনিয়ার!', event.threadID, event.messageID);
-      } else if (msg.includes('আজান') || msg.includes('namaz')) {
-        return api.sendMessage('🕌 সময়মতো নামাজ পড়া খুব দরকার ভাই। খাম-কাজ বাদ দিয়া মসজিদে যাওক।', event.threadID, event.messageID);
-      } else if (msg.includes('খাইছ নি') || msg.includes('khaiso ni')) {
-        return api.sendMessage('আমারে কিতা মানুষ পাইছ নি? আমি কারেন্ট খাইয়া চলি!', event.threadID, event.messageID);
+      // 🤖 ২. চ্যাট মেসেজ
+      if (event.type === "message" || event.type === "message_reply") {
+        const msg = event.body ? event.body.toLowerCase() : '';
+        const senderID = event.senderID;
+
+        if (msg.startsWith('!roast')) {
+          const roasts = [
+            "তুইন ভাই অউ চ্যাটে না আইয়া গিয়া ২ বস্তা ময়দা মেখে আইলে বেশি সুন্দর লাগবো!",
+            "তোমার বুদ্ধি আর ডিমের খোসা, দুইটাই সমান পাতলা ভাই!",
+            "অতো খাইজলামি না করি গিয়া পানের দোকানে গিয়া চুন বেচো গা!",
+            "তোমার লগে কথা কইলে মাথার চুল এক একটা করি হড়ি যায় ভাই!"
+          ];
+          const randomRoast = roasts[Math.floor(Math.random() * roasts.length)];
+          return api.sendMessage(randomRoast, event.threadID, event.messageID);
+        }
+
+        if (msg.startsWith('!play') || msg.startsWith('!song')) {
+          const songName = msg.replace('!play', '').replace('!song', '').trim();
+          if (!songName) {
+            return api.sendMessage('🎵 খানি গানের নাম তো কওয়া লাগবো ভাই! যেমন: !play সিলেটি গান', event.threadID, event.messageID);
+          }
+          return api.sendMessage(`🎶 "${songName}" গান সার্চ করা ইয়ার... YouTube থাকি শুনি নেওগা ভাই: https://www.youtube.com/results?search_query=${encodeURIComponent(songName)}`, event.threadID, event.messageID);
+        }
+
+        if (msg.startsWith('!admin')) {
+          if (senderID !== ADMIN_ID) {
+            return api.sendMessage('🚫 তুইন বটের মালিক নায়! অতো গরম দেখাইও না।', event.threadID, event.messageID);
+          }
+          return api.sendMessage('👑 জিউ মালিক! কইন কিতা করতাম? বটের সব কন্ট্রোল আপনার আতাত।', event.threadID, event.messageID);
+        }
+
+        if (msg.includes('কেমন আছ') || msg.includes('kemon aso')) {
+          return api.sendMessage('আলহামদুলিল্লাহ ভাই, খাইয়া খাম নাই তাও ভালা আছি! আপনার কিতা খবর?', event.threadID, event.messageID);
+        } else if (msg.includes('কিতা কর') || msg.includes('kita kor')) {
+          return api.sendMessage('বইয়া বইয়া মেম্বারদের ফালতু প্যাচাল শুনিয়ার!', event.threadID, event.messageID);
+        } else if (msg.includes('আজান') || msg.includes('namaz')) {
+          return api.sendMessage('🕌 সময়মতো নামাজ পড়া খুব দরকার ভাই। খাম-কাজ বাদ দিয়া মসজিদে যাওক।', event.threadID, event.messageID);
+        } else if (msg.includes('খাইছ নি') || msg.includes('khaiso ni')) {
+          return api.sendMessage('আমারে কিতা মানুষ পাইছ নি? আমি কারেন্ট খাইয়া চলি!', event.threadID, event.messageID);
+        }
       }
-    }
-  });
+    });
+  };
+
+  listenMqtt();
 });
