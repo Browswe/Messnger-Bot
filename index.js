@@ -12,18 +12,20 @@ app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
 });
 
-// Base64 Decode Fix
+// FB_APPSTATE Base64 & JSON Handling
 let appState;
 try {
   const rawData = process.env.FB_APPSTATE || "";
-  // যদি Base64 হয় তবে Decode করবে, আর নরমাল JSON হলে সরাসরি Parse করবে
-  const decodedData = rawData.trim().startsWith('[') 
-    ? rawData 
-    : Buffer.from(rawData, 'base64').toString('utf-8');
-    
+  const cleanedData = rawData.trim();
+
+  // JSON নাকি Base64 তা চেক করে ডিকোড করার লজিক
+  const decodedData = cleanedData.startsWith('[')
+    ? cleanedData
+    : Buffer.from(cleanedData, 'base64').toString('utf-8');
+
   appState = JSON.parse(decodedData);
 } catch (err) {
-  console.error('FB_APPSTATE JSON parse error!', err.message);
+  console.error('FB_APPSTATE Parsing Failed:', err.message);
   process.exit(1);
 }
 
