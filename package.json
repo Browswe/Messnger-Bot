@@ -8,6 +8,6 @@
   },
   "dependencies": {
     "express": "^4.18.2",
-    "fca-unofficial": "latest"
+    "ws3-fca": "latest"
   }
 }
