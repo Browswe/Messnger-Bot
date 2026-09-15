@@ -1,5 +1,5 @@
 const express = require('express');
-const login = require('ws3-fca');
+const login = require('fca-unofficial');
 
 const app = express();
 const PORT = process.env.PORT || 10000;
@@ -20,9 +20,14 @@ try {
   process.exit(1);
 }
 
-const ADMIN_ID = process.env.ADMIN_ID || "61593514827236"; 
+const ADMIN_ID = process.env.ADMIN_ID || "61593514827236";
 
-login({ appState }, (err, api) => {
+const loginOptions = {
+  appState: appState,
+  userAgent: "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+};
+
+login(loginOptions, (err, api) => {
   if (err) {
     console.error('Login Error:', err);
     return;
@@ -32,16 +37,17 @@ login({ appState }, (err, api) => {
     listenEvents: true,
     selfListen: false,
     logLevel: 'silent',
-    forceLogin: true
+    forceLogin: true,
+    listenTyping: false,
+    autoMarkDelivery: false,
+    userAgent: "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
   });
 
-  console.log('Bot successfully logged in with ws3-fca!');
+  console.log('Bot successfully logged in!');
 
-  // Listen Process
   api.listenMqtt((err, event) => {
     if (err) return;
 
-    // 👋 ১. ওয়েলকাম ও গুডবাই
     if (event.type === "event") {
       if (event.logMessageType === "log:subscribe") {
         const memberName = event.logMessageData.addedParticipants[0].fullName;
@@ -51,12 +57,10 @@ login({ appState }, (err, api) => {
       }
     }
 
-    // 🤖 ২. চ্যাট মেসেজ প্রসেসিং
     if (event.type === "message" || event.type === "message_reply") {
       const msg = event.body ? event.body.toLowerCase() : '';
       const senderID = event.senderID;
 
-      // 🔥 রোস্ট
       if (msg.startsWith('!roast')) {
         const roasts = [
           "তুইন ভাই অউ চ্যাটে না আইয়া গিয়া ২ বস্তা ময়দা মেখে আইলে বেশি সুন্দর লাগবো!",
@@ -68,7 +72,6 @@ login({ appState }, (err, api) => {
         return api.sendMessage(randomRoast, event.threadID, event.messageID);
       }
 
-      // 🎵 গান
       if (msg.startsWith('!play') || msg.startsWith('!song')) {
         const songName = msg.replace('!play', '').replace('!song', '').trim();
         if (!songName) {
@@ -77,7 +80,6 @@ login({ appState }, (err, api) => {
         return api.sendMessage(`🎶 "${songName}" গান সার্চ করা ইয়ার... YouTube থাকি শুনি নেওগা ভাই: https://www.youtube.com/results?search_query=${encodeURIComponent(songName)}`, event.threadID, event.messageID);
       }
 
-      // 👑 অ্যাডমিন
       if (msg.startsWith('!admin')) {
         if (senderID !== ADMIN_ID) {
           return api.sendMessage('🚫 তুইন বটের মালিক নায়! অতো গরম দেখাইও না।', event.threadID, event.messageID);
@@ -85,7 +87,6 @@ login({ appState }, (err, api) => {
         return api.sendMessage('👑 জিউ মালিক! কইন কিতা করতাম? বটের সব কন্ট্রোল আপনার আতাত।', event.threadID, event.messageID);
       }
 
-      // 🧠 সিলেটি অটো উত্তর
       if (msg.includes('কেমন আছ') || msg.includes('kemon aso')) {
         return api.sendMessage('আলহামদুলিল্লাহ ভাই, খাইয়া খাম নাই তাও ভালা আছি! আপনার কিতা খবর?', event.threadID, event.messageID);
       } else if (msg.includes('কিতা কর') || msg.includes('kita kor')) {
