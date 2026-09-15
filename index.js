@@ -4,7 +4,7 @@ const login = require('fca-unofficial');
 const app = express();
 const PORT = process.env.PORT || 10000;
 
-// Render Web Server Keep-Alive
+// Web Server Keep-Alive
 app.get('/', (req, res) => {
   res.send('খাইয়া খাম আছে - Sylheti Bot is Active!');
 });
@@ -22,10 +22,9 @@ try {
   process.exit(1);
 }
 
-// Admin FB ID
-const ADMIN_ID = "YOUR_FB_ID_HERE"; 
+const ADMIN_ID = process.env.ADMIN_ID || "61593514827236"; 
+const TARGET_GROUP_ID = process.env.TARGET_GROUP_ID || "4729500100489240";
 
-// Advanced Custom Login Options to Bypass Block
 const loginOptions = {
   appState: appState,
   userAgent: "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
@@ -51,7 +50,7 @@ login(loginOptions, (err, api) => {
   api.listenMqtt((err, event) => {
     if (err) return console.error('Listen Error:', err);
 
-    // 👋 ১. গ্রুপে কেউ জয়েন করলে (Welcome) বা লিভ নিলে (Goodbye)
+    // 👋 ১. নির্দিষ্ট গ্রুপে কেউ জয়েন করলে (Welcome) বা লিভ নিলে (Goodbye)
     if (event.type === "event") {
       if (event.logMessageType === "log:subscribe") {
         const memberName = event.logMessageData.addedParticipants[0].fullName;
@@ -101,9 +100,9 @@ login(loginOptions, (err, api) => {
       } else if (msg.includes('কিতা কর') || msg.includes('kita kor')) {
         return api.sendMessage('বইয়া বইয়া মেম্বারদের ফালতু প্যাচাল শুনিয়ার!', event.threadID, event.messageID);
       } else if (msg.includes('আজান') || msg.includes('namaz')) {
-        return api.sendMessage('🕌 সময়মতো নামাজ পঢ়া খুব দরকার ভাই। খাম-কাজ বাদ দিয়া মসজিদে যাওক।', event.threadID, event.messageID);
+        return api.sendMessage('🕌 সময়মতো নামাজ পড়া খুব দরকার ভাই। খাম-কাজ বাদ দিয়া মসজিদে যাওক।', event.threadID, event.messageID);
       } else if (msg.includes('খাইছ নি') || msg.includes('khaiso ni')) {
-        return api.sendMessage('আমারে কিতা মানুষ পাইছ নি? আমি কারেন্ট খাইয়া চলি!', event.messageID);
+        return api.sendMessage('আমারে কিতা মানুষ পাইছ নি? আমি কারেন্ট খাইয়া চলি!', event.threadID, event.messageID);
       }
     }
   });
