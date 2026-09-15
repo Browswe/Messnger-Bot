@@ -22,9 +22,10 @@ try {
 
 const ADMIN_ID = process.env.ADMIN_ID || "61593514827236";
 
+// অ্যান্ড্রয়েড ব্রাউজারের ইউজার এজেন্ট ব্যবহার করে ব্লক বাইপাস
 const loginOptions = {
   appState: appState,
-  userAgent: "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+  userAgent: "Mozilla/5.0 (Linux; Android 12; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36"
 };
 
 login(loginOptions, (err, api) => {
@@ -40,15 +41,17 @@ login(loginOptions, (err, api) => {
     forceLogin: true,
     listenTyping: false,
     autoMarkDelivery: false,
-    userAgent: "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+    userAgent: "Mozilla/5.0 (Linux; Android 12; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36"
   });
 
   console.log('Bot successfully logged in!');
 
-  const startListening = () => {
+  // Safe Listener Function
+  const listenMessages = () => {
     api.listenMqtt((err, event) => {
       if (err) {
-        return setTimeout(startListening, 5000);
+        // MQTT ব্লক এড়িয়ে নীরব রি-কানেক্ট
+        return setTimeout(listenMessages, 3000);
       }
 
       // 👋 ১. ওয়েলকাম ও গুডবাই
@@ -61,7 +64,7 @@ login(loginOptions, (err, api) => {
         }
       }
 
-      // 🤖 ২. চ্যাট মেসেজ প্রসেসিং
+      // 🤖 ২. চ্যাট মেসেজ
       if (event.type === "message" || event.type === "message_reply") {
         const msg = event.body ? event.body.toLowerCase() : '';
         const senderID = event.senderID;
@@ -109,5 +112,5 @@ login(loginOptions, (err, api) => {
     });
   };
 
-  startListening();
+  listenMessages();
 });
