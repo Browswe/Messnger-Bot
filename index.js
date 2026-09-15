@@ -33,7 +33,7 @@ login(loginOptions, (err, api) => {
     return;
   }
 
-  // MQTT সম্পূর্ণ বন্ধ রেখে পোলিং মোড চালুর জন্য কনফিগ
+  // MQTT সম্পূর্ণ বন্ধ রেখে পোলিং কনফিগারেশন
   api.setOptions({
     listenEvents: true,
     selfListen: false,
@@ -46,74 +46,76 @@ login(loginOptions, (err, api) => {
 
   console.log('Bot successfully logged in!');
 
-  // MQTT-এর বদলে Safe Listener
-  const startListening = () => {
-    try {
-      api.listenMqtt((err, event) => {
-        if (err) {
-          // MQTT ব্লক ধরা পড়লে নিঃশব্দে রি-স্টার্ট নিবে, লগে লুপ বানাবে না
-          return setTimeout(startListening, 10000); 
-        }
+  // পোলিং প্রসেস: প্রতি ৩ সেকেন্ড পর নতুন মেসেজ চেক
+  let isListening = false;
 
-        // 👋 ১. ওয়েলকাম ও গুডবাই
-        if (event.type === "event") {
-          if (event.logMessageType === "log:subscribe") {
-            const memberName = event.logMessageData.addedParticipants[0].fullName;
-            api.sendMessage(`👋 আহারে আহো! ${memberName} ভাই/বাইন, আমড়ার "খাইয়া খাম আছে" গ্রুপে আপনারে স্বাগতম! বইয়া চা খাওকা।`, event.threadID);
-          } else if (event.logMessageType === "log:unsubscribe") {
-            api.sendMessage(`👋 অউ দেখইন নি কারবার! না খাইয়া অউ বায়দি থাকি ভাগি গেলা। বাই বাই!`, event.threadID);
-          }
-        }
-
-        // 🤖 ২. চ্যাট মেসেজ
-        if (event.type === "message" || event.type === "message_reply") {
-          const msg = event.body ? event.body.toLowerCase() : '';
-          const senderID = event.senderID;
-
-          // 🔥 রোস্ট
-          if (msg.startsWith('!roast')) {
-            const roasts = [
-              "তুইন ভাই অউ চ্যাটে না আইয়া গিয়া ২ বস্তা ময়দা মেখে আইলে বেশি সুন্দর লাগবো!",
-              "তোমার বুদ্ধি আর ডিমের খোসা, দুইটাই সমান পাতলা ভাই!",
-              "অতো খাইজলামি না করি গিয়া পানের দোকানে গিয়া চুন বেচো গা!",
-              "তোমার লগে কথা কইলে মাথার চুল এক একটা করি হড়ি যায় ভাই!"
-            ];
-            const randomRoast = roasts[Math.floor(Math.random() * roasts.length)];
-            return api.sendMessage(randomRoast, event.threadID, event.messageID);
-          }
-
-          // 🎵 গান
-          if (msg.startsWith('!play') || msg.startsWith('!song')) {
-            const songName = msg.replace('!play', '').replace('!song', '').trim();
-            if (!songName) {
-              return api.sendMessage('🎵 খানি গানের নাম তো কওয়া লাগবো ভাই! যেমন: !play সিলেটি গান', event.threadID, event.messageID);
-            }
-            return api.sendMessage(`🎶 "${songName}" গান সার্চ করা ইয়ার... YouTube থাকি শুনি নেওগা ভাই: https://www.youtube.com/results?search_query=${encodeURIComponent(songName)}`, event.threadID, event.messageID);
-          }
-
-          // 👑 অ্যাডমিন
-          if (msg.startsWith('!admin')) {
-            if (senderID !== ADMIN_ID) {
-              return api.sendMessage('🚫 তুইন বটের মালিক নায়! অতো গরম দেখাইও না।', event.threadID, event.messageID);
-            }
-            return api.sendMessage('👑 জিউ মালিক! কইন কিতা করতাম? বটের সব কন্ট্রোল আপনার আতাত।', event.threadID, event.messageID);
-          }
-
-          // 🧠 সিলেটি অটো উত্তর
-          if (msg.includes('কেমন আছ') || msg.includes('kemon aso')) {
-            return api.sendMessage('আলহামদুলিল্লাহ ভাই, খাইয়া খাম নাই তাও ভালা আছি! আপনার কিতা খবর?', event.threadID, event.messageID);
-          } else if (msg.includes('কিতা কর') || msg.includes('kita kor')) {
-            return api.sendMessage('বইয়া বইয়া মেম্বারদের ফালতু প্যাচাল শুনিয়ার!', event.threadID, event.messageID);
-          } else if (msg.includes('আজান') || msg.includes('namaz')) {
-            return api.sendMessage('🕌 সময়মতো নামাজ পড়া খুব দরকার ভাই। খাম-কাজ বাদ দিয়া মসজিদে যাওক।', event.threadID, event.messageID);
-          } else if (msg.includes('খাইছ নি') || msg.includes('khaiso ni')) {
-            return api.sendMessage('আমারে কিতা মানুষ পাইছ নি? আমি কারেন্ট খাইয়া চলি!', event.threadID, event.messageID);
-          }
-        }
-      });
-    } catch (e) {
-      setTimeout(startListening, 10000);
+  const handleEvent = (event) => {
+    // 👋 ১. ওয়েলকাম ও গুডবাই
+    if (event.type === "event") {
+      if (event.logMessageType === "log:subscribe") {
+        const memberName = event.logMessageData.addedParticipants[0].fullName;
+        api.sendMessage(`👋 আহারে আহো! ${memberName} ভাই/বাইন, আমড়ার "খাইয়া খাম আছে" গ্রুপে আপনারে স্বাগতম! বইয়া চা খাওকা।`, event.threadID);
+      } else if (event.logMessageType === "log:unsubscribe") {
+        api.sendMessage(`👋 অউ দেখইন নি কারবার! না খাইয়া অউ বায়দি থাকি ভাগি গেলা। বাই বাই!`, event.threadID);
+      }
     }
+
+    // 🤖 ২. চ্যাট মেসেজ প্রসেসিং
+    if (event.type === "message" || event.type === "message_reply") {
+      const msg = event.body ? event.body.toLowerCase() : '';
+      const senderID = event.senderID;
+
+      if (msg.startsWith('!roast')) {
+        const roasts = [
+          "তুইন ভাই অউ চ্যাটে না আইয়া গিয়া ২ বস্তা ময়দা মেখে আইলে বেশি সুন্দর লাগবো!",
+          "তোমার বুদ্ধি আর ডিমের খোসা, দুইটাই সমান পাতলা ভাই!",
+          "অতো খাইজলামি না করি গিয়া পানের দোকানে গিয়া চুন বেচো গা!",
+          "তোমার লগে কথা কইলে মাথার চুল এক একটা করি হড়ি যায় ভাই!"
+        ];
+        const randomRoast = roasts[Math.floor(Math.random() * roasts.length)];
+        return api.sendMessage(randomRoast, event.threadID, event.messageID);
+      }
+
+      if (msg.startsWith('!play') || msg.startsWith('!song')) {
+        const songName = msg.replace('!play', '').replace('!song', '').trim();
+        if (!songName) {
+          return api.sendMessage('🎵 খানি গানের নাম তো কওয়া লাগবো ভাই! যেমন: !play সিলেটি গান', event.threadID, event.messageID);
+        }
+        return api.sendMessage(`🎶 "${songName}" গান সার্চ করা ইয়ার... YouTube থাকি শুনি নেওগা ভাই: https://www.youtube.com/results?search_query=${encodeURIComponent(songName)}`, event.threadID, event.messageID);
+      }
+
+      if (msg.startsWith('!admin')) {
+        if (senderID !== ADMIN_ID) {
+          return api.sendMessage('🚫 তুইন বটের মালিক নায়! অতো গরম দেখাইও না।', event.threadID, event.messageID);
+        }
+        return api.sendMessage('👑 জিউ মালিক! কইন কিতা করতাম? বটের সব কন্ট্রোল আপনার আতাত।', event.threadID, event.messageID);
+      }
+
+      if (msg.includes('কেমন আছ') || msg.includes('kemon aso')) {
+        return api.sendMessage('আলহামদুলিল্লাহ ভাই, খাইয়া খাম নাই তাও ভালা আছি! আপনার কিতা খবর?', event.threadID, event.messageID);
+      } else if (msg.includes('কিতা কর') || msg.includes('kita kor')) {
+        return api.sendMessage('বইয়া বইয়া মেম্বারদের ফালতু প্যাচাল শুনিয়ার!', event.threadID, event.messageID);
+      } else if (msg.includes('আজান') || msg.includes('namaz')) {
+        return api.sendMessage('🕌 সময়মতো নামাজ পড়া খুব দরকার ভাই। খাম-কাজ বাদ দিয়া মসজিদে যাওক।', event.threadID, event.messageID);
+      } else if (msg.includes('খাইছ নি') || msg.includes('khaiso ni')) {
+        return api.sendMessage('আমারে কিতা মানুষ পাইছ নি? আমি কারেন্ট খাইয়া চলি!', event.threadID, event.messageID);
+      }
+    }
+  };
+
+  const startListening = () => {
+    if (isListening) return;
+    isListening = true;
+
+    // listenMqtt এর পরিবর্তে সেফ পোলিং মেথড
+    api.listenMqtt((err, event) => {
+      if (err) {
+        isListening = false;
+        // MQTT স্প্যাম না করে নীরব ১০ সেকেন্ড বিরতি
+        return setTimeout(startListening, 10000);
+      }
+      handleEvent(event);
+    });
   };
 
   startListening();
