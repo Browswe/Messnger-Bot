@@ -1,5 +1,5 @@
 const express = require('express');
-const login = require('fca-unofficial');
+const login = require('fca-project-origen');
 
 const app = express();
 const PORT = process.env.PORT || 10000;
@@ -20,7 +20,7 @@ try {
   process.exit(1);
 }
 
-const ADMIN_ID = process.env.ADMIN_ID || "61593514827236"; 
+const ADMIN_ID = process.env.ADMIN_ID || "61593514827236";
 
 const loginOptions = {
   appState: appState,
@@ -33,7 +33,6 @@ login(loginOptions, (err, api) => {
     return;
   }
 
-  // Polling ও MQTT অটো-ফলব্যাক সেটআপ
   api.setOptions({
     listenEvents: true,
     selfListen: false,
@@ -47,12 +46,9 @@ login(loginOptions, (err, api) => {
 
   console.log('Bot successfully logged in!');
 
-  // Listen Process
+  // MQTT Reconnect Loop প্রতিরোধে সাধারণ লিসেনার
   api.listenMqtt((err, event) => {
-    if (err) {
-      console.log('Listener Warning, maintaining session...');
-      return; 
-    }
+    if (err) return;
 
     // 👋 ১. ওয়েলকাম ও গুডবাই
     if (event.type === "event") {
