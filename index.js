@@ -1,5 +1,5 @@
 const express = require('express');
-const login = require('fca-horizon-remake');
+const login = require('fca-unofficial-force');
 
 const app = express();
 const PORT = process.env.PORT || 10000;
@@ -22,7 +22,7 @@ try {
   process.exit(1);
 }
 
-// Admin FB ID (এখানে আপনার আসল ফেসবুক প্রোফাইল ID নম্বর বসাবেন)
+// Admin FB ID
 const ADMIN_ID = "YOUR_FB_ID_HERE"; 
 
 login({ appState }, (err, api) => {
