@@ -4,11 +4,10 @@
   "description": "Sylheti Messenger Bot",
   "main": "index.js",
   "scripts": {
-    "build": "npm install",
     "start": "node index.js"
   },
   "dependencies": {
     "express": "^4.18.2",
-    "fca-unofficial-force": "^1.0.8"
+    "fca-unofficial": "git+https://github.com/mzying02/fca-unofficial.git"
   }
 }
