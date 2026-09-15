@@ -1,5 +1,5 @@
 const express = require('express');
-const login = require('fca-unofficial-force');
+const login = require('fca-unofficial');
 
 const app = express();
 const PORT = process.env.PORT || 10000;
