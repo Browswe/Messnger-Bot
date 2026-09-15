@@ -12,18 +12,23 @@ app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
 });
 
-// FB_APPSTATE Base64 & JSON Handling
+// Base64 and Raw JSON AppState Handler
 let appState;
 try {
   const rawData = process.env.FB_APPSTATE || "";
   const cleanedData = rawData.trim();
 
-  // JSON নাকি Base64 তা চেক করে ডিকোড করার লজিক
+  if (!cleanedData) {
+    throw new Error("FB_APPSTATE is empty or undefined in Railway Variables!");
+  }
+
+  // Base64 নাকি JSON তা চেক করে ডিকোড করার লজিক
   const decodedData = cleanedData.startsWith('[')
     ? cleanedData
     : Buffer.from(cleanedData, 'base64').toString('utf-8');
 
   appState = JSON.parse(decodedData);
+  console.log("AppState successfully parsed!");
 } catch (err) {
   console.error('FB_APPSTATE Parsing Failed:', err.message);
   process.exit(1);
