@@ -1,5 +1,5 @@
 const express = require('express');
-const login = require('fca-project-origen');
+const login = require('ws3-fca');
 
 const app = express();
 const PORT = process.env.PORT || 10000;
@@ -20,14 +20,9 @@ try {
   process.exit(1);
 }
 
-const ADMIN_ID = process.env.ADMIN_ID || "61593514827236";
+const ADMIN_ID = process.env.ADMIN_ID || "61593514827236"; 
 
-const loginOptions = {
-  appState: appState,
-  userAgent: "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
-};
-
-login(loginOptions, (err, api) => {
+login({ appState }, (err, api) => {
   if (err) {
     console.error('Login Error:', err);
     return;
@@ -37,16 +32,12 @@ login(loginOptions, (err, api) => {
     listenEvents: true,
     selfListen: false,
     logLevel: 'silent',
-    forceLogin: true,
-    listenTyping: false,
-    autoMarkDelivery: false,
-    online: true,
-    userAgent: "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+    forceLogin: true
   });
 
-  console.log('Bot successfully logged in!');
+  console.log('Bot successfully logged in with ws3-fca!');
 
-  // MQTT Reconnect Loop প্রতিরোধে সাধারণ লিসেনার
+  // Listen Process
   api.listenMqtt((err, event) => {
     if (err) return;
 
@@ -60,7 +51,7 @@ login(loginOptions, (err, api) => {
       }
     }
 
-    // 🤖 ২. চ্যাট মেসেজ
+    // 🤖 ২. চ্যাট মেসেজ প্রসেসিং
     if (event.type === "message" || event.type === "message_reply") {
       const msg = event.body ? event.body.toLowerCase() : '';
       const senderID = event.senderID;
