@@ -25,7 +25,13 @@ try {
 // Admin FB ID
 const ADMIN_ID = "YOUR_FB_ID_HERE"; 
 
-login({ appState }, (err, api) => {
+// Advanced Custom Login Options to Bypass Block
+const loginOptions = {
+  appState: appState,
+  userAgent: "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+};
+
+login(loginOptions, (err, api) => {
   if (err) {
     console.error('Login Error:', err);
     return;
@@ -34,7 +40,9 @@ login({ appState }, (err, api) => {
   api.setOptions({
     listenEvents: true,
     selfListen: false,
-    logLevel: 'silent'
+    logLevel: 'silent',
+    forceLogin: true,
+    userAgent: "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
   });
 
   console.log('Bot successfully logged in!');
@@ -95,7 +103,7 @@ login({ appState }, (err, api) => {
       } else if (msg.includes('আজান') || msg.includes('namaz')) {
         return api.sendMessage('🕌 সময়মতো নামাজ পঢ়া খুব দরকার ভাই। খাম-কাজ বাদ দিয়া মসজিদে যাওক।', event.threadID, event.messageID);
       } else if (msg.includes('খাইছ নি') || msg.includes('khaiso ni')) {
-        return api.sendMessage('আমারে কিতা মানুষ পাইছ নি? আমি কারেন্ট খাইয়া চলি!', event.threadID, event.messageID);
+        return api.sendMessage('আমারে কিতা মানুষ পাইছ নি? আমি কারেন্ট খাইয়া চলি!', event.messageID);
       }
     }
   });
