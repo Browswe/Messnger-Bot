@@ -1,12 +1,13 @@
 {
   "name": "khaia-kham-ache-bot",
   "version": "1.0.0",
+  "description": "Sylheti Messenger Bot",
   "main": "index.js",
   "scripts": {
     "start": "node index.js"
   },
   "dependencies": {
     "express": "^4.18.2",
-    "fca-project-origen": "latest"
+    "fca-horizon-remake": "latest"
   }
 }
