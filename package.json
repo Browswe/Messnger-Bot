@@ -8,6 +8,6 @@
   },
   "dependencies": {
     "express": "^4.18.2",
-    "fca-project-origen": "github:fb-chat-api/fca-project-origen"
+    "fca-unofficial": "1.3.10"
   }
 }
